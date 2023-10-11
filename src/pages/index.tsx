@@ -1,10 +1,37 @@
 import { SignInButton, SignOutButton, useUser } from "@clerk/nextjs";
 import Head from "next/head";
+import type { inferRouterOutputs } from '@trpc/server';
 
 import { api } from "~/utils/api";
+import type { AppRouter } from "~/server/api/root";
 
 export default function Home() {
-  const user = useUser();
+  const CreatePostWizard = () => {
+    const { user } = useUser();
+
+    if (!user) return null;
+
+    console.log(user);
+
+    return <div className="flex gap-3">
+      <img src={user.imageUrl} alt="Profile image" className="w-14 h-14 rounded-full" />
+      <input placeholder="Type some emojis!" className=" bg-transparent grow outline-none" />
+    </div>
+  }
+
+  type RouterOutput = inferRouterOutputs<AppRouter>;
+  type PostWithUser = RouterOutput['post']['getAll'][number];
+
+  const PostView = (props: PostWithUser) => {
+    const { post, author } = props;
+    return (
+      <div key={post.id} className="border-b p-8 border-slate-400">
+        {post.content}
+      </div>
+    );
+  }
+
+  const { isSignedIn } = useUser();
   const { data, isLoading } = api.post.getAll.useQuery();
 
   if (isLoading) return <div>Loading...</div>
@@ -21,11 +48,13 @@ export default function Home() {
         <div className="w-full h-full border-x border-slate-400 md:max-w-2xl">
           <div>
             <div className="border-b p-4 border-slate-400">
-              {!user.isSignedIn && <SignInButton />}
-              {!!user.isSignedIn && <SignOutButton />}
+              {!isSignedIn && <SignInButton />}
+              {isSignedIn && <CreatePostWizard />}
             </div>
             <div>
-              {[...data, ...data].map(post => (<div key={post.id} className="border-b p-8 border-slate-400">{post.content}</div>))}
+              {data.map((postWithUser: PostWithUser) => (
+                <PostView {...postWithUser} key={postWithUser.post.id} />
+              ))}
             </div>
           </div>
         </div>
